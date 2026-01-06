@@ -1,31 +1,31 @@
-# Dockerfile
-FROM php:8.2-cli
+# Version MySQL seulement
+FROM php:8.2
 
-# Dépendances minimales
-RUN apt-get update && apt-get install -y \
-    curl git unzip sqlite3 \
-    && docker-php-ext-install pdo_mysql pdo_sqlite \
-    && rm -rf /var/lib/apt/lists/*
+# Installation minimale
+RUN apt-get update && \
+    apt-get install -y curl && \
+    rm -rf /var/lib/apt/lists/*
 
-# Composer
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+# Installer Composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 WORKDIR /var/www/html
 
-# Copier tout
 COPY . .
 
-# Installer dépendances
-RUN composer install --no-dev --optimize-autoloader
+# Installer dépendances (ignore les warnings extensions)
+RUN composer install --no-dev --optimize-autoloader --ignore-platform-reqs
 
-# Configuration minimale
-RUN echo "APP_ENV=production" > .env && \
-    echo "APP_DEBUG=false" >> .env && \
-    echo "APP_KEY=base64:izFMkW9mZV8lNZWgsyqDgVgS2b9nZLaaCNzxCZ8yL5I=" >> .env && \
-    echo "DB_CONNECTION=sqlite" >> .env
-
-# Créer database.sqlite
-RUN touch database/database.sqlite && chmod 755 database/database.sqlite
+# .env pour MySQL
+RUN echo "APP_ENV=production" > .env
+RUN echo "APP_DEBUG=false" >> .env
+RUN echo "APP_KEY=base64:izFMkW9mZV8lNZWgsyqDgVgS2b9nZLaaCNzxCZ8yL5I=" >> .env
+RUN echo "DB_CONNECTION=mysql" >> .env
+RUN echo "DB_HOST=127.0.0.1" >> .env
+RUN echo "DB_PORT=3306" >> .env
+RUN echo "DB_DATABASE=laravel" >> .env
+RUN echo "DB_USERNAME=root" >> .env
+RUN echo "DB_PASSWORD=" >> .env
 
 EXPOSE 8000
 
