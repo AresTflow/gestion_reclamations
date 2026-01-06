@@ -1,37 +1,28 @@
+# Dockerfile simplifié - Sans build frontend
+FROM php:8.2-fpm-alpine
 
-# Stage 1 - Build Frontend (Vite)
-FROM node:18 AS frontend
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN npm run build
+# Dépendances minimales
+RUN apk update && apk add --no-cache \
+    bash curl git unzip \
+    libpng-dev libzip-dev zip oniguruma-dev
 
-# Stage 2 - Backend (Laravel + PHP + Composer)
-FROM php:8.2-fpm AS backend
+# Extensions PHP essentielles
+RUN docker-php-ext-install pdo_mysql mbstring zip
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    git curl unzip libpq-dev libonig-dev libzip-dev zip \
-    && docker-php-ext-install pdo pdo_mysql mbstring zip
-
-# Install Composer
+# Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-WORKDIR /var/www
+WORKDIR /var/www/html
 
-# Copy app files
+# Copier et installer
 COPY . .
-
-# Copy built frontend from Stage 1
-COPY --from=frontend /app/public/dist ./public/dist
-
-# Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Laravel setup
-RUN php artisan config:clear && \
-    php artisan route:clear && \
-    php artisan view:clear
+# Permissions Laravel
+RUN chmod -R 755 storage bootstrap/cache
 
-CMD ["php-fpm"]
+# Port Render
+EXPOSE 8000
+
+# Commande Render
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
