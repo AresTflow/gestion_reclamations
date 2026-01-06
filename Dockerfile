@@ -44,12 +44,17 @@ RUN composer install --no-dev --no-interaction --optimize-autoloader --no-script
 # 3. Copier le reste de l'application
 COPY . .
 
-# 4. FORCER SQLITE pour Render
-ENV DB_CONNECTION=sqlite \
-    CACHE_DRIVER=file \
-    SESSION_DRIVER=file \
-    QUEUE_CONNECTION=sync \
-    RENDER=true
+# 4. CRÉER .env AVEC TA CLÉ EXISTANTE (pas de key:generate)
+RUN echo "APP_NAME=\"Gestion Réclamations\"" > .env && \
+    echo "APP_ENV=production" >> .env && \
+    echo "APP_KEY=base64:izFMkW9mZV8lNZWgsyqDgVgS2b9nZLaaCNzxCZ8yL5I=" >> .env && \
+    echo "APP_DEBUG=false" >> .env && \
+    echo "APP_URL=http://localhost:8000" >> .env && \
+    echo "DB_CONNECTION=sqlite" >> .env && \
+    echo "CACHE_DRIVER=file" >> .env && \
+    echo "SESSION_DRIVER=file" >> .env && \
+    echo "QUEUE_CONNECTION=sync" >> .env && \
+    echo "LOG_LEVEL=error" >> .env
 
 # 5. Créer le fichier SQLite et configurer les permissions
 RUN touch database/database.sqlite && \
@@ -60,8 +65,8 @@ RUN touch database/database.sqlite && \
     /var/www/html/bootstrap/cache \
     database/database.sqlite
 
-# 6. Générer la clé Laravel (si non définie)
-RUN php artisan key:generate --no-interaction --force
+# 6. SUPPRIMÉ: php artisan key:generate --no-interaction --force
+# (La clé est déjà définie ci-dessus)
 
 # 7. Exécuter les migrations
 RUN php artisan migrate --force --no-interaction
