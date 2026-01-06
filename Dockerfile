@@ -1,31 +1,35 @@
-# Version MySQL seulement
-FROM php:8.2
+# Dockerfile qui marche - Laravel sur Render
+FROM php:8.2-cli-alpine
 
-# Installation minimale
-RUN apt-get update && \
-    apt-get install -y curl && \
-    rm -rf /var/lib/apt/lists/*
+# Installation MINIMALE
+RUN apk add --no-cache curl git
 
-# Installer Composer
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+# Composer (méthode alternative)
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin --filename=composer
 
 WORKDIR /var/www/html
 
+# 1. Copier SEULEMENT composer.json d'abord
+COPY composer.json composer.lock ./
+
+# 2. Installer dépendances AVEC timeout augmenté
+RUN composer install --no-dev --no-interaction --ignore-platform-reqs --no-scripts \
+    --no-autoloader --prefer-dist
+
+# 3. Copier tout
 COPY . .
 
-# Installer dépendances (ignore les warnings extensions)
-RUN composer install --no-dev --optimize-autoloader --ignore-platform-reqs
+# 4. Générer autoloader
+RUN composer dump-autoload --optimize --no-dev
 
-# .env pour MySQL
+# 5. .env SIMPLE
 RUN echo "APP_ENV=production" > .env
 RUN echo "APP_DEBUG=false" >> .env
 RUN echo "APP_KEY=base64:izFMkW9mZV8lNZWgsyqDgVgS2b9nZLaaCNzxCZ8yL5I=" >> .env
-RUN echo "DB_CONNECTION=mysql" >> .env
-RUN echo "DB_HOST=127.0.0.1" >> .env
-RUN echo "DB_PORT=3306" >> .env
-RUN echo "DB_DATABASE=laravel" >> .env
-RUN echo "DB_USERNAME=root" >> .env
-RUN echo "DB_PASSWORD=" >> .env
+RUN echo "DB_CONNECTION=sqlite" >> .env
+
+# 6. SQLite file
+RUN touch database/database.sqlite
 
 EXPOSE 8000
 
