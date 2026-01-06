@@ -22,3 +22,6 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+if (-not (Select-String -Path .gitignore -Pattern "database.sqlite")) {
+    "database/database.sqlite" | Out-File -FilePath .gitignore -Append -Encoding UTF8
+}

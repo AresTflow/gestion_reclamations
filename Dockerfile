@@ -1,28 +1,78 @@
-# Dockerfile simplifié - Sans build frontend
+# Dockerfile optimisé pour Laravel + SQLite sur Render
 FROM php:8.2-fpm-alpine
 
-# Dépendances minimales
+# Installer les dépendances système
 RUN apk update && apk add --no-cache \
-    bash curl git unzip \
-    libpng-dev libzip-dev zip oniguruma-dev
+    bash \
+    curl \
+    git \
+    unzip \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    libwebp-dev \
+    libzip-dev \
+    zip \
+    oniguruma-dev \
+    sqlite \
+    sqlite-dev
 
-# Extensions PHP essentielles
-RUN docker-php-ext-install pdo_mysql mbstring zip
+# Installer les extensions PHP
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install \
+    pdo_mysql \
+    pdo_sqlite \
+    mbstring \
+    exif \
+    pcntl \
+    bcmath \
+    gd \
+    zip
 
-# Composer
+# Installer Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
+# Répertoire de travail
 WORKDIR /var/www/html
 
-# Copier et installer
+# 1. Copier les fichiers de dépendances
+COPY composer.json composer.lock ./
+
+# 2. Installer les dépendances PHP
+RUN composer install --no-dev --no-interaction --optimize-autoloader --no-scripts
+
+# 3. Copier le reste de l'application
 COPY . .
-RUN composer install --no-dev --optimize-autoloader
 
-# Permissions Laravel
-RUN chmod -R 755 storage bootstrap/cache
+# 4. FORCER SQLITE pour Render
+ENV DB_CONNECTION=sqlite \
+    CACHE_DRIVER=file \
+    SESSION_DRIVER=file \
+    QUEUE_CONNECTION=sync \
+    RENDER=true
 
-# Port Render
+# 5. Créer le fichier SQLite et configurer les permissions
+RUN touch database/database.sqlite && \
+    chown -R www-data:www-data /var/www/html/storage \
+    /var/www/html/bootstrap/cache \
+    database/database.sqlite && \
+    chmod -R 755 /var/www/html/storage \
+    /var/www/html/bootstrap/cache \
+    database/database.sqlite
+
+# 6. Générer la clé Laravel (si non définie)
+RUN php artisan key:generate --no-interaction --force
+
+# 7. Exécuter les migrations
+RUN php artisan migrate --force --no-interaction
+
+# 8. Optimiser Laravel
+RUN php artisan config:cache && \
+    php artisan route:cache && \
+    php artisan view:cache
+
+# Port pour Render
 EXPOSE 8000
 
-# Commande Render
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+# Commande pour Render
+CMD php artisan serve --host=0.0.0.0 --port=8000
